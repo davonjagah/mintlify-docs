@@ -1,5 +1,5 @@
 ---
-title: "Execute OTC Stablecoin Trades with Transika"
+title: "Execute and Manage OTC Stablecoin Trades in Transika"
 sidebarTitle: "OTC Trades"
 description: "Exchange USDT or USDC for Ghana cedis (GHS) and back through the Transika OTC API. Learn trade creation, lifecycle, and settlement paths."
 ---
@@ -60,6 +60,28 @@ draft → quoted → accepted → funding_submitted → funded → settling → 
 | `expired` | The quote expired before you accepted it. Terminal state. |
 | `cancelled` | The trade was explicitly cancelled. Terminal state. |
 | `rejected` | Funding could not be confirmed by Transika. Terminal state. |
+
+## List trades
+
+Retrieve all OTC trades for your merchant in the current environment. Use pagination to page through large result sets.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/otc/trades" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+Pass `?page=` and `?limit=` query parameters to control pagination. The response includes a list of trade objects, each containing the trade `id`, `status`, `direction`, `settleMode`, and timestamps.
+
+## Retrieve a trade
+
+Fetch a single trade by its ID. This is the canonical way to check the current status of a trade when you are not using webhooks, or to confirm a status after receiving a webhook event.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/otc/trades/$TRADE_ID" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+The response includes all trade fields: the current `status`, the quoted amounts and exchange rate, funding instructions, settlement details, and timestamps. Use this endpoint when polling for state transitions.
 
 ## Settlement paths
 

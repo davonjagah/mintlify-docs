@@ -1,5 +1,5 @@
 ---
-title: "Manage Ghana MoMo and Bank Beneficiaries"
+title: "Manage Ghana MoMo and Bank Beneficiaries in Transika"
 sidebarTitle: "Beneficiaries"
 description: "Create and manage Ghana mobile money and bank beneficiary accounts for OTC settlements and tGHS payouts using the Transika merchant API."
 ---
@@ -91,6 +91,17 @@ The request body accepts the following fields:
 <Note>
   Transika does not assign a default beneficiary. You must pass the intended `beneficiaryId` explicitly on every payout request or trade creation — there is no fallback.
 </Note>
+
+## List beneficiaries
+
+Retrieve all beneficiaries registered to your merchant in the current environment. Use this to look up a `beneficiaryId` or to verify that a beneficiary was created successfully.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+The response is a paginated list of beneficiary objects. Each object includes the `id`, `label`, `accountType`, `accountNumber`, `networkCode`, and creation timestamp. Pass `?page=` and `?limit=` query parameters to paginate through large result sets.
 
 ## Use a beneficiary
 

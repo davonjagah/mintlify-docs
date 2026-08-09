@@ -1,5 +1,5 @@
 ---
-title: "Receive and Verify Transika OTC Webhook Events"
+title: "Configure and Verify Transika Webhook Event Delivery"
 sidebarTitle: "Webhooks"
 description: "Transika delivers signed HMAC-SHA256 webhook events for the full OTC trade lifecycle. Learn to create endpoints, verify signatures, and handle retries."
 ---
@@ -40,6 +40,29 @@ curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/webhooks/endpoi
 <Warning>
   The signing secret is returned **only** in the create response and immediately after a secret rotation. Copy it and store it securely (for example, in your secrets manager) before closing the response — it cannot be retrieved again.
 </Warning>
+
+## List endpoints
+
+Retrieve all webhook endpoints registered to your merchant for the current environment. Use this to verify that an endpoint was created successfully or to find the endpoint ID you need to delete.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/webhooks/endpoints" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+The response is a list of endpoint objects. Each object includes the endpoint `id`, `url`, `description`, `environment`, `events`, and creation timestamp. Note that the signing secret is **not** included in this response — it is only available in the create response.
+
+## Delete an endpoint
+
+Remove a registered webhook endpoint by its ID. Transika stops delivering events to the endpoint immediately after deletion.
+
+```bash
+curl -X DELETE \
+  "https://sbx-institutional.tran-sika.com/sandbox/v1/webhooks/endpoints/$ENDPOINT_ID" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+A successful deletion returns a `200` response. Deleting an endpoint does not affect events that have already been delivered or are currently queued for retry.
 
 ## Verify signatures
 
