@@ -1,0 +1,61 @@
+---
+title: "API Scopes, KYB Status, and Feature Entitlements"
+sidebarTitle: "Scopes & Access"
+description: "Understand what determines API access in Transika: key scope, merchant KYB approval status, and per-product feature entitlements."
+icon: "shield-check"
+---
+
+A valid API key is necessary for every Transika request, but it is not sufficient on its own. On each request, Transika evaluates three things in combination: the scope assigned to your key, the merchant account's KYB verification status, and whether the product feature required by the requested route has been enabled. All three must pass for a request to succeed.
+
+## API key scopes
+
+When you create an API key, you assign it one of two scopes that determine what operations it can perform:
+
+| Scope | Access granted |
+| --- | --- |
+| `api:read` | Read merchant business resources — list, retrieve, and search operations only |
+| `api:write` | Read and mutate merchant business resources — all read operations plus creates and updates |
+
+`api:write` implies read access, so a single key with `api:write` can perform all operations. Use `api:read` for reporting dashboards, reconciliation pipelines, and any other integration that never needs to create or modify resources — this limits the potential impact if that key is ever exposed.
+
+## KYB status
+
+Your merchant account must have an `approved` KYB status before product APIs are accessible. Transika returns `403` with an error code of `kyb_required` when this check fails.
+
+| Status | API effect |
+| --- | --- |
+| `pending` | Product access is blocked while your identity review is in progress — no action needed, wait for the review to complete |
+| `approved` | Product access is available, subject to your key's scope and product feature entitlements |
+| `rejected` | Product access is blocked — log in to the merchant dashboard to resolve the review outcome |
+| `suspended` | Product access is blocked until Transika restores the account — contact support |
+
+## Feature entitlements
+
+Beyond core API access, some routes require a dedicated product feature entitlement. For example, OTC trade routes require both the `api_access` feature (granting general API access) and the `otc` product feature. Calling an OTC route without the `otc` entitlement returns `403` even if your key is valid and your KYB status is `approved`.
+
+<Info>
+  A key scope never grants access to a product that is not enabled for the merchant. Equally, having a product entitlement does not override a read-only key on a write request — scope and entitlement checks are independent and both must pass.
+</Info>
+
+## Access checklist
+
+Before integrating a product route, verify all five of the following:
+
+1. The merchant KYB status is `approved` in the dashboard.
+2. The `api_access` feature is enabled on the merchant account.
+3. The product-specific feature required by the target route (for example, `otc`) is enabled.
+4. The API key belongs to the same environment as the request path — `txk_test_` with `/sandbox/v1`, or `txk_live_` with `/v1`.
+5. The key has `api:read` scope for read requests, or `api:write` scope for any request that creates or modifies a resource.
+
+## Diagnose a 403
+
+When a request returns `403`, read the `message` field and any `errors.code` in the response body, then work through the following checks in order:
+
+1. **Check the key's scope.** Confirm your key has `api:write` if you are performing a mutation, or at least `api:read` for read operations.
+2. **Check the merchant's KYB status.** Log in to the dashboard and confirm the status is `approved`. If it is `pending`, `rejected`, or `suspended`, resolve that state first.
+3. **Check `api_access`.** Confirm the core API access feature is enabled on your merchant account — this is a prerequisite before any product-level access is evaluated.
+4. **Check the product entitlement.** Confirm the specific product feature required by the route you are calling (for example, `otc` for OTC trade routes) is enabled for your merchant account.
+
+<Card title="Authentication" icon="key-round" href="/getting-started/authentication">
+  Review how to pass bearer tokens correctly, understand environment-bound key prefixes, and safely rotate or revoke keys.
+</Card>

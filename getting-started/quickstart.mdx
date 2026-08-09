@@ -1,0 +1,90 @@
+---
+title: "Get Started with the Transika Merchant API"
+sidebarTitle: "Quickstart"
+description: "Make your first authenticated Transika API call in minutes. Verify your key, environment, and response parsing with a safe read-only sandbox request."
+icon: "rocket"
+---
+
+This quickstart walks you through making your first Transika sandbox API call. You'll hit the beneficiary networks endpoint — a safe, read-only route that returns the supported mobile money and bank networks — so you can confirm your API key, environment URL, and response parsing work correctly before building any real product flows.
+
+## Prerequisites
+
+<Note>
+  Before you make your first request, confirm you have the following:
+
+  - An **approved merchant account** with KYB status `approved`
+  - The **`api_access`** feature enabled on your merchant account
+  - A **test API key** with at least the `api:read` or `api:write` scope
+
+  Your full API key secret is shown **only once** at creation time. Copy it to your secret manager immediately — it cannot be retrieved later.
+</Note>
+
+## Make your first request
+
+<Steps>
+  <Step title="Export your API key as an environment variable">
+    Store your test key in a shell variable so you never paste secrets directly into commands:
+
+    ```bash
+    export TRANSIKA_API_KEY="txk_test_REPLACE_ME"
+    ```
+
+    Replace `txk_test_REPLACE_ME` with the actual key you received when creating your sandbox API key.
+  </Step>
+
+  <Step title="Call the beneficiary networks endpoint">
+    Run the following `curl` command against the sandbox base URL. This endpoint requires no request body and has no side effects:
+
+    ```bash
+    curl --request GET \
+      --url "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries/networks?kind=momo" \
+      --header "Authorization: Bearer ${TRANSIKA_API_KEY}" \
+      --header "Accept: application/json"
+    ```
+
+    The `kind=momo` query parameter filters results to mobile money networks. You can omit it to retrieve all supported network types.
+  </Step>
+
+  <Step title="Parse the response">
+    A successful request returns a JSON envelope like this:
+
+    ```json
+    {
+      "status": "success",
+      "message": "success",
+      "data": {
+        "networks": [
+          { "code": "MTNGH", "label": "MTN Mobile Money", "kind": "momo" }
+        ]
+      }
+    }
+    ```
+
+    Every Transika API response wraps its payload in the same top-level envelope:
+
+    | Field | Description |
+    | --- | --- |
+    | `status` | `"success"` on a successful request, or an error indicator on failure |
+    | `message` | A human-readable summary of the outcome |
+    | `data` | The endpoint-specific payload — the shape of `data` varies per route |
+
+    If your response shows `"status": "success"` and a populated `data.networks` array, your key, environment, and HTTP client are all configured correctly.
+  </Step>
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key-round" href="/getting-started/authentication">
+    Learn how to create, rotate, and revoke API keys and understand environment-bound bearer tokens.
+  </Card>
+  <Card title="Beneficiaries" icon="users" href="/guides/beneficiaries">
+    Resolve and store payout destinations before initiating transfers.
+  </Card>
+  <Card title="OTC Trades" icon="arrow-left-right" href="/guides/otc-trades">
+    Execute over-the-counter FX trades using the merchant API.
+  </Card>
+  <Card title="Sandbox Testing" icon="flask-conical" href="/guides/sandbox-testing">
+    Plan and exercise full product flows safely before going live.
+  </Card>
+</CardGroup>

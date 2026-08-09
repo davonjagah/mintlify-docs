@@ -1,0 +1,70 @@
+---
+title: "Paginate Through Transika API List Responses"
+sidebarTitle: "Pagination"
+description: "Transika list endpoints use page-based pagination. Use the page and limit parameters to retrieve records one page at a time."
+icon: "list-filter"
+---
+
+Transika list endpoints return records one page at a time using `page` and `limit` query parameters. Apply consistent filters across pages so results stay stable throughout a traversal, and use resource IDs for deduplication when records can change while you paginate.
+
+## Query parameters
+
+Use the two standard parameters below on any list endpoint. Some endpoints also accept additional filters — check the API reference for that resource before sending endpoint-specific parameters.
+
+<ParamField query="page" type="integer" default="1">
+  One-based page number. Values below `1` resolve to the first page. Increment this value by `1` for each subsequent request in a traversal.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of records to return per page. Transika clamps this value to the range `1` through `100`. Set it as high as `100` when iterating programmatically to reduce round-trips.
+</ParamField>
+
+Some endpoints also accept filters such as `q` (full-text search), `status`, and `customerId`. Apply these filters consistently on every page request in a traversal to avoid skipping or duplicating records.
+
+## Request a page
+
+The example below fetches the first 50 transactions from the sandbox environment. Swap `page` and `limit` as needed.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/transactions?page=1&limit=50" \
+  --header "Authorization: Bearer ${TRANSIKA_API_KEY}" \
+  --header "Accept: application/json"
+```
+
+## Iterate through all pages
+
+When you need to process an entire collection, use an async generator that increments `page` until a response returns fewer records than the requested `limit` — the signal that you have reached the last page.
+
+```javascript
+async function* listPages(path) {
+  const limit = 100;
+  for (let page = 1; ; page += 1) {
+    const url = new URL(
+      `https://sbx-institutional.tran-sika.com/sandbox/v1${path}`,
+    );
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("limit", String(limit));
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${process.env.TRANSIKA_API_KEY}` },
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message);
+    yield body.data;
+    const records = body.data.items ?? body.data.data ?? [];
+    if (records.length < limit) break;
+  }
+}
+```
+
+<Note>
+  The exact collection and metadata field names vary by resource. For example, some endpoints nest records under `data.items` while others use `data.data`. Check the specific endpoint's schema in the API reference and adapt the iteration logic accordingly.
+</Note>
+
+## Best practices
+
+Keep these guidelines in mind whenever you paginate through Transika resources:
+
+- **Apply the same filter set to every page.** Changing filters mid-traversal can cause records to be skipped or returned twice.
+- **Deduplicate by resource ID.** If records can be created or updated while you paginate, the same ID may appear on multiple pages — always deduplicate on the resource's unique `id` field.
+- **Start a fresh traversal for full reconciliation.** If you need a complete and consistent snapshot, begin from page 1 rather than resuming a previous run.
+- **Use webhooks for ongoing state changes.** Polling all pages repeatedly is inefficient and may cause rate-limit pressure. Subscribe to the relevant webhook events for real-time updates instead.

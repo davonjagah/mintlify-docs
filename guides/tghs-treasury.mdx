@@ -1,0 +1,84 @@
+---
+title: "Manage Your tGHS Treasury Balance in Transika"
+sidebarTitle: "tGHS Treasury"
+description: "Acquire a managed GHS balance through OTC settlement, read your treasury activity, and pay Ghana beneficiaries directly from your tGHS balance."
+---
+
+tGHS is a managed treasury balance denominated in Ghana cedis. You acquire tGHS by settling a `crypto_to_fiat` OTC trade into your balance, then pay Ghana mobile money or bank beneficiaries directly from it — no separate banking integration required.
+
+<Info>
+  tGHS uses the `otc` product feature entitlement. Your merchant must have approved KYB/KYC before accessing any tGHS endpoint. Transika manages settlement behind the scenes; your integration only touches the merchant API endpoints documented here.
+</Info>
+
+## How it works
+
+<Steps>
+  <Step title="Request managed tGHS settlement">
+    Create a `crypto_to_fiat` OTC trade with `settleMode: "managed_tghs"`. Accept the returned quote before it expires, then submit the stablecoin funding transaction hash as proof of funding.
+  </Step>
+  <Step title="Wait for settlement">
+    Track the trade by polling the trade detail endpoint or consuming OTC webhook events until it reaches the `settled` status. The quoted GHS amount then becomes available in your tGHS balance.
+  </Step>
+  <Step title="Create a beneficiary">
+    Store a Ghana mobile money or bank beneficiary in the same environment (sandbox or live). You need the `beneficiaryId` from this step to initiate a payout.
+  </Step>
+  <Step title="Initiate a payout">
+    Submit the `beneficiaryId` and the GHS amount to the `/tghs/payout` endpoint, then monitor the payout status via treasury activity.
+  </Step>
+</Steps>
+
+## Check your balance
+
+Read your current tGHS balance at any time. Treat the returned value as the authoritative available balance for your selected environment.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/tghs" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+<Note>
+  The balance reflects the environment you are targeting. Your sandbox balance and live balance are fully independent — always verify you are reading from the correct environment before initiating a payout.
+</Note>
+
+## View treasury activity
+
+Treasury activity records every credit and debit against your tGHS balance. Use it to reconcile settlements and monitor payout outcomes.
+
+Activity records have two kinds:
+
+- **`mint`** — a credit to your balance from an OTC trade settlement
+- **`payout`** — a debit from your balance to a beneficiary
+
+Each record has a `status` of `pending`, `succeeded`, or `failed`.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/tghs/activities?page=1&limit=20" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+## Pay a beneficiary
+
+Debit your tGHS balance and send GHS to a registered beneficiary. The beneficiary must exist in the same environment as the payout request.
+
+```bash
+curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/tghs/payout" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":250,"beneficiaryId":"BENEFICIARY_ID"}'
+```
+
+The request amount must not exceed your available balance. Use `/tghs/activities` to track the payout status after submission — the response gives you the initial record, but activity is the consistent source of truth for final status.
+
+<Warning>
+  Payout requests do not currently accept an idempotency key. If a request times out or returns a network error, check your activity history before retrying to avoid initiating a duplicate payout.
+</Warning>
+
+## Environment isolation
+
+<Note>
+  Test and live tGHS balances, beneficiaries, activity records, payout requests, and linked OTC trades are fully isolated from each other. IDs from one environment cannot be used in the other, and test operations never move real funds.
+</Note>
+
+<Card title="Beneficiaries" icon="user" href="/guides/beneficiaries">
+  Set up Ghana MoMo and bank beneficiaries to receive your tGHS payouts.
+</Card>

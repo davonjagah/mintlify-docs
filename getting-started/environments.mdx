@@ -1,0 +1,71 @@
+---
+title: "Sandbox and Live Environments in Transika"
+sidebarTitle: "Environments"
+description: "Transika provides isolated sandbox and live environments. Use URL path prefixes and matching API key prefixes to control which environment you call."
+icon: "server"
+---
+
+Transika provides two fully isolated environments — sandbox and live — served from the same API origin. The URL path you include in your request determines which environment processes it. This means you can switch between environments by changing a single base path and its matching API key, with no other differences in how you structure requests or parse responses.
+
+## Base URLs
+
+| Environment | Base URL |
+| --- | --- |
+| Sandbox | `https://sbx-institutional.tran-sika.com/sandbox/v1` |
+| Live | `https://sbx-institutional.tran-sika.com/v1` |
+
+Pair each base URL with its corresponding key prefix: `txk_test_` for sandbox and `txk_live_` for live. Sending a key to a mismatched path returns `400`.
+
+<Warning>
+  Do not attempt to select an environment using a header such as `X-Transika-Environment` — no such header exists. The **request path is the only authoritative selector**. Any environment-routing logic in your code must live in how you construct the base URL.
+</Warning>
+
+## Sandbox
+
+The sandbox environment provides fully isolated records and test-mode product behavior. No real funds move, no real counterparties are contacted, and no production data is affected. Use it to build integrations, validate your request and response handling, and exercise error paths freely.
+
+The following example fetches your sandbox beneficiary list:
+
+```bash
+curl --request GET \
+  --url "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries?page=1&limit=20" \
+  --header "Authorization: Bearer ${TRANSIKA_API_KEY}" \
+  --header "Accept: application/json"
+```
+
+Sandbox requests will never cross into live mode based on request data or headers — isolation is enforced at the path level.
+
+## Going live
+
+Promote to the live environment deliberately after completing thorough sandbox testing. Follow these steps:
+
+<Steps>
+  <Step title="Finish sandbox testing">
+    Exercise all product flows your integration uses: happy paths, validation errors, authorization failures, and any webhook or callback handling your system relies on.
+  </Step>
+  <Step title="Create a live API key">
+    Generate a dedicated `txk_live_` key from the merchant dashboard. Assign only the scopes your integration needs — `api:read` for read-only integrations, `api:write` if your integration creates or updates resources.
+  </Step>
+  <Step title="Update your configuration">
+    Replace your sandbox base path (`/sandbox/v1`) with the live path (`/v1`) and swap the test key for the live key. Both values must change together — a mismatched pair returns `400`.
+  </Step>
+  <Step title="Verify with a read request first">
+    Before initiating any live write operations, confirm authentication and response parsing are working by calling a safe read endpoint such as `GET /v1/beneficiaries/networks`. Only proceed to writes after confirming a successful read.
+  </Step>
+</Steps>
+
+## Store config externally
+
+Keep your API origin, path prefix, and key outside application source code so you can switch environments without a code change:
+
+```text
+TRANSIKA_API_ORIGIN=https://sbx-institutional.tran-sika.com
+TRANSIKA_API_PATH=/sandbox/v1
+TRANSIKA_API_KEY=txk_test_REPLACE_ME
+```
+
+The values above are examples only. Store real credentials in your deployment's secret manager — never commit live or sandbox keys to source control, even in `.env` files excluded by `.gitignore`.
+
+<Card title="Sandbox Testing Guide" icon="flask-conical" href="/guides/sandbox-testing">
+  Plan comprehensive test cases, trigger specific sandbox behaviors, and validate your entire integration workflow before promoting to live.
+</Card>

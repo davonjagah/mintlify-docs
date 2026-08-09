@@ -1,0 +1,67 @@
+---
+title: "Handling Transika API Responses and Errors"
+sidebarTitle: "Responses & Errors"
+description: "Every Transika API response uses a consistent JSON envelope. Learn how to parse success payloads, handle errors, and log safely."
+icon: "braces"
+---
+
+Transika wraps every merchant API response in a consistent JSON envelope. Use the HTTP status code for control flow and the response body for context and diagnostics. This predictable structure means you can write a single response-handling layer that works across every endpoint in the API.
+
+## Success envelope
+
+When a request succeeds, the response body always contains a `status` of `"success"`, a human-readable `message`, and a `data` object holding the resource payload.
+
+```json
+{
+  "status": "success",
+  "message": "Beneficiary created",
+  "data": { "id": "ben_abc123" }
+}
+```
+
+- **`status`** — Always either `"success"` or `"error"`. Use this field to branch your response-handling logic.
+- **`message`** — A human-readable summary of the outcome. Safe to display in logs or developer tooling.
+- **`data`** — Contains the resource payload. The shape of this object varies by endpoint — consult the API reference for the exact fields returned.
+
+## Error envelope
+
+When a request fails, `status` is `"error"` and `data` is `null`. An optional `errors` object provides field-level or policy-level details that help you diagnose and resolve the issue.
+
+```json
+{
+  "status": "error",
+  "message": "Verification is required",
+  "errors": { "code": "kyb_required", "kybStatus": "pending" },
+  "data": null
+}
+```
+
+- **`errors`** — Optional. May contain field validation failures, policy codes (such as `kyb_required`), or other structured diagnostics. Not present on every error response.
+- **`message`** — Always present on errors. Use this field for user-facing or log output.
+- **`data`** — Always `null` on error responses.
+
+## HTTP status codes
+
+Branch your error-handling logic on the HTTP status code before inspecting the body. The table below describes what each status means and what action you should take.
+
+| Status | Meaning | Recommended action |
+| --- | --- | --- |
+| `400` | Invalid request context | Correct the request before retrying. |
+| `401` | Authentication failed | Replace or correct the bearer key. |
+| `403` | Scope, KYB, role, or entitlement blocked | Resolve access; do not retry unchanged. |
+| `404` | Resource not found | Check the identifier and environment. |
+| `409` | State conflict | Refresh and reconcile the resource. |
+| `422` | Validation failed | Correct fields using `message` and `errors`. |
+| `5xx` | Server error | Retry safe requests with exponential backoff. |
+
+<Warning>
+  Do not retry write requests blindly. Before resubmitting, first determine whether the original operation completed — check resource status or transaction history to avoid creating duplicates.
+</Warning>
+
+## Log safely
+
+Structured logging makes debugging faster, but certain fields must never appear in logs or error reports.
+
+<Note>
+  Always redact the following before writing logs or sending data to an observability platform: **Authorization headers**, **API keys**, **webhook signing secrets**, and any unnecessary personal or financial account data. Log enough context to reproduce the issue without exposing credentials or sensitive customer information.
+</Note>

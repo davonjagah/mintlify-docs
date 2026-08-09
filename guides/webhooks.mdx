@@ -1,0 +1,93 @@
+---
+title: "Receive and Verify Transika OTC Webhook Events"
+sidebarTitle: "Webhooks"
+description: "Transika delivers signed HMAC-SHA256 webhook events for the full OTC trade lifecycle. Learn to create endpoints, verify signatures, and handle retries."
+---
+
+Transika sends signed webhook events to your HTTPS endpoint when OTC trade lifecycle events occur. Verify every delivery with HMAC-SHA256 using the signing secret you received at endpoint creation, and process event IDs idempotently to handle retries safely — delivery is at-least-once, so duplicates are expected and must be handled by your consumer.
+
+## Events
+
+Subscribe to individual events, the `otc.trade.*` wildcard to receive all OTC trade state changes, or `*` to receive every event type. The following events are currently delivered:
+
+- `webhook.test` — fired when you trigger a manual test delivery from the dashboard or API
+- `otc.trade.created` — a new OTC trade was created
+- `otc.trade.quoted` — a quote and funding instructions are ready
+- `otc.trade.accepted` — the quote was accepted before expiry
+- `otc.trade.funding_submitted` — a funding proof was submitted
+- `otc.trade.funded` — Transika confirmed the funding
+- `otc.trade.settled` — the trade settled successfully (terminal)
+- `otc.trade.expired` — the quote expired before acceptance (terminal)
+- `otc.trade.cancelled` — the trade was cancelled (terminal)
+- `otc.trade.rejected` — funding could not be confirmed (terminal)
+
+## Create an endpoint
+
+Register an HTTPS endpoint to begin receiving events. Specify the environment (`test` or `live`) and the exact events or wildcards you want to subscribe to.
+
+```bash
+curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/webhooks/endpoints" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/webhooks/transika",
+    "description": "Test OTC events",
+    "environment": "test",
+    "events": ["otc.trade.*", "webhook.test"]
+  }'
+```
+
+<Warning>
+  The signing secret is returned **only** in the create response and immediately after a secret rotation. Copy it and store it securely (for example, in your secrets manager) before closing the response — it cannot be retrieved again.
+</Warning>
+
+## Verify signatures
+
+Transika includes an HMAC-SHA256 signature with every delivery so you can confirm the payload has not been tampered with. The signature is computed as follows:
+
+```text
+signedPayload = timestamp + "." + rawBody
+signature     = HMAC-SHA256(signingSecret, signedPayload)
+```
+
+Always use the **raw request bytes** exactly as received. Do not parse and re-serialize the JSON body before computing or comparing the signature — even cosmetic whitespace changes will cause a mismatch.
+
+```javascript
+import crypto from "node:crypto";
+
+function verify(rawBody, timestamp, received, secret) {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`, "utf8")
+    .digest("hex");
+
+  return /^[a-f0-9]{64}$/i.test(received) &&
+    crypto.timingSafeEqual(
+      Buffer.from(received, "hex"),
+      Buffer.from(expected, "hex"),
+    );
+}
+```
+
+<Note>
+  Reject deliveries with stale timestamps to prevent replay attacks. Additionally, store and check event IDs before processing — because delivery is at-least-once, your handler must be idempotent and tolerate receiving the same event more than once.
+</Note>
+
+## Endpoint requirements
+
+Your receiving endpoint must meet the following requirements before Transika will deliver events to it:
+
+- Must use **HTTPS** (plain HTTP is not accepted)
+- Must be **publicly reachable** from the internet
+- Must **not include embedded URL credentials** (e.g. `https://user:pass@example.com`)
+- Transika **blocks private and reserved IP destinations** and does **not follow redirects**
+
+## Retries
+
+Any `2xx` HTTP response code signals successful delivery — your handler does not need to return a specific body. Timeouts, network errors, and any non-`2xx` response code are all treated as delivery failures and will be retried for a limited period.
+
+Because Transika retries failed deliveries, your consumer must handle duplicate event IDs gracefully. Record the event ID as part of processing and skip events you have already handled.
+
+<Card title="Sandbox Testing" icon="flask" href="/guides/sandbox-testing">
+  Use the sandbox to test your webhook endpoint before registering it for live events.
+</Card>

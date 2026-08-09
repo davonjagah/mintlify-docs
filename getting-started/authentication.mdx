@@ -1,0 +1,84 @@
+---
+title: "Authenticate Requests with Transika API Keys"
+sidebarTitle: "Authentication"
+description: "Transika uses environment-bound bearer API keys. Learn how to create, use, rotate, and revoke keys for secure merchant API access."
+icon: "key-round"
+---
+
+Transika authenticates every merchant API request via a secret API key passed as a bearer token in the `Authorization` header. There are no session cookies, OAuth flows, or API signatures — every request must carry a valid key that matches both the target environment and the requested operation's required scope.
+
+## Pass your API key
+
+Include your API key on every request using the `Authorization` header:
+
+```http
+Authorization: Bearer txk_test_REPLACE_ME
+```
+
+Here is a complete example using `curl`:
+
+```bash
+curl --request GET \
+  --url "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries/networks" \
+  --header "Authorization: Bearer ${TRANSIKA_API_KEY}" \
+  --header "Accept: application/json"
+```
+
+<Warning>
+  **Never expose your API key on the client side.** Do not embed keys in browser JavaScript, mobile application bundles, logs, screenshots, support tickets, or source control. All calls to the Transika API must originate from a trusted server environment where the key is held in a secret manager.
+</Warning>
+
+## Key environments
+
+Every API key is bound to a specific environment. The key prefix must match the URL path prefix you use — sending a key to the wrong environment returns `400`.
+
+| Key prefix | Environment | Request path prefix |
+| --- | --- | --- |
+| `txk_test_` | Sandbox | `/sandbox/v1` |
+| `txk_live_` | Live | `/v1` |
+
+The request path — not a header — determines which environment receives your request. There is no `X-Transika-Environment` override.
+
+## Create and manage keys
+
+API key management requires an authenticated merchant dashboard session and the `api_access` feature entitlement. Use the following endpoints:
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /v1/api-keys` | Create a new API key and receive the one-time secret |
+| `GET /v1/api-keys` | List all keys and their metadata (IDs, scopes, creation dates) |
+| `DELETE /v1/api-keys/{id}` | Revoke a key immediately and permanently |
+
+The `POST /v1/api-keys` response displays the full key secret **exactly once**. Copy it to your secret manager before closing the response — it cannot be retrieved again. If you lose a key secret, create a replacement and revoke the lost key.
+
+<Tip>
+  Give each integration and deployment environment its own dedicated key. Separate keys limit the blast radius of a rotation, prevent credential sharing between systems, and make it straightforward to audit which integration is responsible for specific API activity.
+</Tip>
+
+## Rotate a key
+
+Rotate keys proactively on a schedule and reactively whenever you suspect a key has been exposed. Follow these steps to rotate without downtime:
+
+<Steps>
+  <Step title="Create a replacement key">
+    Issue a new key in the same environment (`/sandbox/v1` or `/v1`) and assign only the minimum scope your integration requires — `api:read` or `api:write`.
+  </Step>
+  <Step title="Deploy the replacement">
+    Update your secret manager with the new key value. Redeploy or reload your service so all active instances begin sending the new key. Verify that requests succeed before proceeding.
+  </Step>
+  <Step title="Revoke the old key">
+    Once all instances have switched and you have confirmed successful requests, call `DELETE /v1/api-keys/{id}` with the old key's ID. Revocation is immediate — any request still carrying the old key will receive `401` from that point forward.
+  </Step>
+</Steps>
+
+## Authentication errors
+
+| Status | Typical cause |
+| --- | --- |
+| `400` | The key prefix (`txk_test_` or `txk_live_`) does not match the request path (`/sandbox/v1` or `/v1`) |
+| `401` | The bearer token is missing, malformed, invalid, expired, or has been revoked |
+| `403` | The key lacks the required scope, the merchant's KYB status is not `approved`, or a product feature entitlement is missing |
+
+<Card title="Scopes & Access" icon="shield-check" href="/getting-started/scopes-and-prerequisites">
+  Understand how key scopes, KYB approval status, and feature entitlements combine to determine what each request is authorized to do.
+</Card>

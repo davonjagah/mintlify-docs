@@ -1,0 +1,108 @@
+---
+title: "Manage Ghana MoMo and Bank Beneficiaries"
+sidebarTitle: "Beneficiaries"
+description: "Create and manage Ghana mobile money and bank beneficiary accounts for OTC settlements and tGHS payouts using the Transika merchant API."
+---
+
+Beneficiaries are Ghana Mobile Money (MoMo) or bank accounts that receive OTC fiat settlements or tGHS payouts. Every approved merchant can create and use beneficiaries without a separate feature entitlement — they are available the moment your KYB/KYC is approved and your API key is issued.
+
+<Info>
+  Your merchant must have approved KYB/KYC before creating or reading beneficiaries. Use an API key with `api:read` scope for reads and `api:write` scope for create and update operations.
+</Info>
+
+## Supported networks
+
+Fetch the current network catalog from the API instead of hard-coding network codes in your integration. Networks are subject to change, and a stale code will cause a failed request.
+
+```bash
+curl "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries/networks?kind=momo" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+Set `kind` to `momo` or `bank` to filter by account type, or omit the parameter entirely to return both network kinds in a single response.
+
+## Resolve an account name
+
+Before creating a beneficiary, run a name enquiry to confirm the account details. The resolve endpoint returns the account holder's name and validates the account number against the network — but it does **not** create a beneficiary record.
+
+```bash
+curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries/resolve" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"networkCode":"MTNGH","accountNumber":"233241234567"}'
+```
+
+## Create a beneficiary
+
+Once you have the confirmed network code and account details, create the beneficiary record. The `beneficiaryId` returned in the response is what you pass to every payout or trade.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "Main payout account",
+    "accountType": "momo",
+    "accountNumber": "233241234567",
+    "networkCode": "MTNGH",
+    "accountName": "Example Account Holder"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  "https://sbx-institutional.tran-sika.com/sandbox/v1/beneficiaries",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.TRANSIKA_TEST_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      label: "Main payout account",
+      accountType: "momo",
+      accountNumber: "233241234567",
+      networkCode: "MTNGH",
+      accountName: "Example Account Holder",
+    }),
+  },
+);
+
+const beneficiary = await response.json();
+console.log(beneficiary.id); // save this as your beneficiaryId
+```
+
+</CodeGroup>
+
+The request body accepts the following fields:
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `label` | Yes | Your human-readable display name for this beneficiary. |
+| `accountType` | Yes | `momo` for mobile money or `bank` for a bank account. |
+| `accountNumber` | Yes | The mobile or bank account number to receive funds. |
+| `networkCode` | Yes | The network code returned by the networks endpoint. |
+| `accountName` | No | Account holder name as returned by the resolve endpoint. |
+| `bankName` | No | Bank display name (used for `bank` account types). |
+| `customerId` | No | Defaults to your merchant's primary customer if omitted. |
+
+<Note>
+  Transika does not assign a default beneficiary. You must pass the intended `beneficiaryId` explicitly on every payout request or trade creation — there is no fallback.
+</Note>
+
+## Use a beneficiary
+
+Once created, a beneficiary can be used in two contexts:
+
+- **OTC fiat settlement** — For a `crypto_to_fiat` trade with `settleMode: "fiat"`, provide the `beneficiaryId` in the trade creation request. Transika will send the GHS proceeds to that account when the trade settles.
+- **tGHS payout** — To move funds out of your managed tGHS balance, provide the `beneficiaryId` and payout amount to the `/tghs/payout` endpoint.
+
+In both cases, the beneficiary must belong to your merchant and be registered in the same environment (sandbox or live) as the trade or payout request.
+
+## Environment isolation
+
+<Note>
+  Beneficiaries created in the sandbox environment are not available in live, and vice versa. You must recreate beneficiary records separately in each environment before going live.
+</Note>

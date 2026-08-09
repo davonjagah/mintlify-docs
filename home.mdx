@@ -1,0 +1,66 @@
+---
+title: "Transika: Stablecoin & GHS Merchant API"
+sidebarTitle: "Home"
+description: "Transika lets merchants exchange stablecoins and Ghana cedis, manage a GHS treasury balance, and pay Ghana mobile money and bank beneficiaries."
+icon: "house"
+---
+
+Transika is an institutional merchant API platform built for businesses that need to move value between USDT/USDC stablecoins and Ghana cedis (GHS). You can hold a managed GHS treasury balance (tGHS), pay Ghana mobile money (MoMo) and bank beneficiaries, and receive signed webhook events across the full OTC trade lifecycle. Whether you are a fintech, payment aggregator, or treasury desk, Transika gives you a single API to operate in the Ghana market.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/getting-started/quickstart">
+    Authenticate and make your first API request in minutes.
+  </Card>
+  <Card title="Authentication" icon="key-round" href="/getting-started/authentication">
+    Learn how bearer keys and environments work.
+  </Card>
+  <Card title="OTC Trades" icon="arrow-left-right" href="/guides/otc-trades">
+    Request, accept, and fund stablecoin-to-GHS trades.
+  </Card>
+  <Card title="tGHS Treasury" icon="vault" href="/guides/tghs-treasury">
+    Manage your Ghana cedi treasury balance.
+  </Card>
+</CardGroup>
+
+## What you can build
+
+- Exchange USDT or USDC for Ghana cedis (GHS) and vice versa via OTC trades
+- Hold and reconcile a managed GHS treasury balance (tGHS)
+- Pay Ghana mobile money (MoMo) and bank beneficiaries from your tGHS balance
+- Maintain a roster of verified Ghana beneficiaries
+- Receive signed webhook events for every stage of the OTC trade lifecycle
+- Automate treasury operations and real-time settlement
+
+## Integration steps
+
+<Steps>
+  <Step title="Complete KYB">
+    Submit your business verification documents and obtain approved KYB and product access from the Transika team.
+  </Step>
+  <Step title="Start in sandbox">
+    Create a sandbox API key and point your integration at the `/sandbox/v1` base URL to test all flows without moving real funds.
+  </Step>
+  <Step title="Handle responses">
+    Parse successful payloads from the `data` envelope, map non-2xx status codes to your error handling logic, and process events idempotently.
+  </Step>
+  <Step title="Go live">
+    Swap your sandbox key for a live API key, update your base URL to the production endpoint, and monitor signed webhook events in real time.
+  </Step>
+</Steps>
+
+## Explore the docs
+
+<CardGroup cols={2}>
+  <Card title="Beneficiaries" icon="users" href="/guides/beneficiaries">
+    Create and manage Ghana MoMo and bank beneficiaries.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/guides/webhooks">
+    Verify signatures and handle OTC lifecycle events.
+  </Card>
+  <Card title="Environments" icon="server" href="/getting-started/environments">
+    Understand the difference between sandbox and live environments.
+  </Card>
+  <Card title="Sandbox Testing" icon="flask-conical" href="/guides/sandbox-testing">
+    Simulate trades, payouts, and webhook events end-to-end.
+  </Card>
+</CardGroup>

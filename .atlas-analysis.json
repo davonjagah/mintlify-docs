@@ -1,0 +1,74 @@
+{
+  "projectType": "saas",
+  "projectName": "Transika",
+  "projectDescription": "Transika is a merchant API platform for exchanging stablecoins and Ghana cedis, managing a GHS treasury balance, and paying Ghana mobile money or bank beneficiaries.",
+  "theme": "luma",
+  "primaryColor": "#1be49c",
+  "lightColor": "#0c8c5c",
+  "darkColor": "#0c0c0c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "home",
+              "getting-started/quickstart",
+              "getting-started/authentication",
+              "getting-started/environments",
+              "getting-started/scopes-and-prerequisites"
+            ]
+          },
+          {
+            "group": "API Concepts",
+            "pages": [
+              "getting-started/responses-and-errors",
+              "getting-started/pagination"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/beneficiaries",
+              "guides/otc-trades",
+              "guides/tghs-treasury",
+              "guides/webhooks",
+              "guides/sandbox-testing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Bidirectional OTC trading between USDT/USDC and Ghana cedis (GHS)",
+    "Managed tGHS treasury balance for holding and deploying GHS",
+    "Ghana mobile money (MoMo) and bank beneficiary management",
+    "Fiat and crypto settlement paths for OTC trades",
+    "Signed webhook delivery for the full OTC trade lifecycle",
+    "Isolated sandbox and live environments",
+    "Bearer-token authentication with scoped API keys",
+    "Name enquiry (account resolution) before creating beneficiaries"
+  ],
+  "publicApiSurface": [
+    "GET /beneficiaries/networks",
+    "POST /beneficiaries/resolve",
+    "POST /beneficiaries",
+    "GET /beneficiaries",
+    "POST /otc/trades",
+    "GET /otc/trades",
+    "GET /otc/trades/{id}",
+    "POST /otc/trades/{id}/simulate-ops",
+    "GET /tghs",
+    "GET /tghs/activities",
+    "POST /tghs/payout",
+    "POST /webhooks/endpoints",
+    "GET /webhooks/endpoints",
+    "DELETE /webhooks/endpoints/{id}",
+    "POST /v1/api-keys",
+    "GET /v1/api-keys",
+    "DELETE /v1/api-keys/{id}"
+  ]
+}

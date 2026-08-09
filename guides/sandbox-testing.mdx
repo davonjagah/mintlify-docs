@@ -1,0 +1,105 @@
+---
+title: "Test Your Transika Integration in Sandbox"
+sidebarTitle: "Sandbox Testing"
+description: "Validate your Transika merchant integration end-to-end in the isolated sandbox environment before switching to live credentials."
+---
+
+The Transika sandbox lets you validate your entire integration without moving real funds. Test and live credentials, URL routes, and data records are fully isolated from each other — everything you create in sandbox stays in sandbox and never appears in live, and live data is never visible from the sandbox.
+
+## Route and key isolation
+
+Select your environment by using the correct URL path and API key prefix. There is no toggle or header — the combination of path and key is what determines the environment.
+
+| Environment | Route prefix | API key prefix |
+| --- | --- | --- |
+| Test | `/sandbox/v1` | `txk_test_` |
+| Live | `/v1` | `txk_live_` |
+
+<Warning>
+  Do **not** use an `X-Transika-Environment` header to select an environment. The request path and key prefix are the only authoritative selectors. Sending a mismatched key and path — for example, a `txk_live_` key to `/sandbox/v1` — returns a `400` error immediately.
+</Warning>
+
+## Configure a test client
+
+Set your base URL and test API key as environment variables so every request in your development environment automatically targets sandbox.
+
+```bash
+export TRANSIKA_API_URL="https://sbx-institutional.tran-sika.com"
+export TRANSIKA_TEST_API_KEY="txk_test_REPLACE_LOCALLY"
+
+curl "$TRANSIKA_API_URL/sandbox/v1/otc/trades" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+Replace `txk_test_REPLACE_LOCALLY` with the test API key from your Transika merchant dashboard.
+
+## Authentication in sandbox
+
+<Note>
+  Sandbox access still requires approved KYB/KYC, the relevant product feature entitlements (such as `otc`), and an API key with the appropriate scope. A test key bypasses fund movement — it does not bypass access controls.
+</Note>
+
+## Test an OTC trade
+
+Use the `simulate-ops` action to advance a non-terminal sandbox trade through quoting, funding confirmation, and settlement without submitting any real transaction hashes or moving funds.
+
+```bash
+curl -X POST \
+  "$TRANSIKA_API_URL/sandbox/v1/otc/trades/$TRADE_ID/simulate-ops" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+Call `simulate-ops` repeatedly on the same trade to step through each state in the lifecycle until the trade reaches `settled`. This lets you exercise your status-polling logic, webhook handlers, and reconciliation flows against realistic state transitions.
+
+## Test tGHS
+
+To test the tGHS treasury workflow in sandbox:
+
+1. Create a `crypto_to_fiat` OTC trade with `settleMode: "managed_tghs"`.
+2. Call `simulate-ops` on the trade to advance it to `settled`.
+3. Read `/sandbox/v1/tghs` to confirm the balance has been credited.
+4. Create a sandbox beneficiary and submit a payout via `/sandbox/v1/tghs/payout`.
+
+## Test webhooks
+
+To test webhook delivery in sandbox:
+
+1. Create a test endpoint via `/sandbox/v1/webhooks/endpoints` with `"environment": "test"`.
+2. Save the signing secret from the create response.
+3. Call the endpoint's `/test` action. Your receiver will receive a signed `webhook.test` payload along with matching test OTC trade events.
+4. Verify your signature verification logic handles the delivery correctly before registering a live endpoint.
+
+## Data isolation
+
+<Note>
+  OTC trades, beneficiaries, tGHS balances and activity, and webhook endpoints are all scoped to their environment. An ID created in sandbox cannot be used in a live API call, and a live ID is invisible in sandbox. There is no cross-environment data sharing.
+</Note>
+
+## Before going live
+
+Complete each of these steps before switching your integration to live credentials:
+
+<Steps>
+  <Step title="Create live API keys with minimum required scope">
+    Generate separate live keys in your merchant dashboard. Grant only the scopes your integration actually needs — do not reuse test keys or over-provision scope.
+  </Step>
+  <Step title="Recreate beneficiaries in live">
+    Beneficiary records are environment-scoped. Re-register every Ghana MoMo or bank account your integration pays out to under the live environment.
+  </Step>
+  <Step title="Register separate live webhook endpoints">
+    Create new webhook endpoint records pointing to your production receiver URL with `"environment": "live"`. Store the new signing secrets securely.
+  </Step>
+  <Step title="Confirm product features and KYB/KYC">
+    Verify that your merchant's live account has the required product entitlements (such as `otc`) and that KYB/KYC approval is active for the live environment.
+  </Step>
+  <Step title="Switch to /v1 and live credentials">
+    Update your base URL from `/sandbox/v1` to `/v1` and swap in your `txk_live_` API key. Double-check every configured URL and every key reference in your deployment.
+  </Step>
+  <Step title="Run a controlled live transaction and verify reconciliation">
+    Execute a small live OTC trade or tGHS payout, confirm the webhook delivery, and reconcile the result against your records before scaling up volume.
+  </Step>
+</Steps>
+
+<Warning>
+  Sandbox success confirms your integration logic is correct — it does not guarantee that a live transfer or payout will succeed. Live transactions are subject to network availability, beneficiary account validity, and real-time liquidity.
+</Warning>

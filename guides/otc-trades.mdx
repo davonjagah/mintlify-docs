@@ -1,0 +1,101 @@
+---
+title: "Execute OTC Stablecoin Trades with Transika"
+sidebarTitle: "OTC Trades"
+description: "Exchange USDT or USDC for Ghana cedis (GHS) and back through the Transika OTC API. Learn trade creation, lifecycle, and settlement paths."
+---
+
+Transika OTC supports bidirectional trades between USDT or USDC and Ghana cedis (GHS). You can settle fiat to a Ghana beneficiary account, credit your managed tGHS treasury balance, or receive stablecoin directly to your wallet — all through a single unified API.
+
+## Trade directions
+
+Choose the direction that matches your use case. Both directions support USDT and USDC.
+
+| Direction | You provide | You receive |
+| --- | --- | --- |
+| `crypto_to_fiat` | USDT or USDC | GHS to a beneficiary or your managed tGHS balance |
+| `fiat_to_crypto` | GHS | USDT or USDC to your designated wallet |
+
+<Info>
+  OTC trading requires approved merchant KYB/KYC, the `otc` product feature entitlement, and an API key with `api:write` scope for trade mutations. Use `api:read` for read-only operations.
+</Info>
+
+## Create a trade
+
+Submit a trade creation request with your desired direction, asset, amount, and settlement details. You can provide either `amountIn` or `amountOut` — Transika calculates the other side. The response includes the exchange rate, the calculated counterpart amount, a quote expiry time, and funding instructions.
+
+```bash
+curl -X POST "https://sbx-institutional.tran-sika.com/sandbox/v1/otc/trades" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "direction": "crypto_to_fiat",
+    "settleMode": "fiat",
+    "amountIn": 1000,
+    "assetIn": "USDC",
+    "network": "base",
+    "sendingWallet": "0x1111111111111111111111111111111111111111",
+    "beneficiaryId": "BENEFICIARY_ID"
+  }'
+```
+
+Accept the returned quote before it expires to move the trade to the `accepted` state, then follow the funding instructions to submit your transaction hash.
+
+## Trade lifecycle
+
+Trades advance through a defined set of states from creation to completion. Track the trade by polling the trade detail endpoint or consuming OTC webhook events until you reach a terminal status.
+
+```
+draft → quoted → accepted → funding_submitted → funded → settling → settled
+```
+
+| Status | Meaning |
+| --- | --- |
+| `draft` | Trade created; waiting for a quote to be generated. |
+| `quoted` | Quote and funding instructions are ready for review. |
+| `accepted` | You accepted the quote before it expired. |
+| `funding_submitted` | Your funding proof (transaction hash) was submitted. |
+| `funded` | Transika confirmed receipt of your funding. |
+| `settling` | Settlement to the beneficiary or wallet is processing. |
+| `settled` | Settlement completed successfully. Terminal state. |
+| `expired` | The quote expired before you accepted it. Terminal state. |
+| `cancelled` | The trade was explicitly cancelled. Terminal state. |
+| `rejected` | Funding could not be confirmed by Transika. Terminal state. |
+
+## Settlement paths
+
+### Fiat settlement
+
+For a `crypto_to_fiat` trade with `settleMode: "fiat"`, Transika converts your stablecoin and sends the GHS proceeds directly to the beneficiary account identified by `beneficiaryId`. The beneficiary must be registered in the same environment as the trade.
+
+### tGHS settlement
+
+For a `crypto_to_fiat` trade with `settleMode: "managed_tghs"`, the quoted GHS amount is credited to your managed tGHS treasury balance once the trade reaches `settled`. No beneficiary is required for this path — you can distribute the balance to beneficiaries later via `/tghs/payout`.
+
+### Crypto settlement
+
+For a `fiat_to_crypto` trade, Transika converts your GHS and sends the agreed stablecoin amount to the wallet address you specify in `receiveWallet`.
+
+## Test the full flow
+
+In the sandbox environment, use the `simulate-ops` action to advance a non-terminal trade through quoting, funding confirmation, and settlement without moving any real funds.
+
+```bash
+curl -X POST \
+  "https://sbx-institutional.tran-sika.com/sandbox/v1/otc/trades/$TRADE_ID/simulate-ops" \
+  -H "Authorization: Bearer $TRANSIKA_TEST_API_KEY"
+```
+
+Call `simulate-ops` repeatedly to step the trade through each state until it reaches `settled`. This lets you test your full webhook handling and reconciliation logic end-to-end in sandbox.
+
+<Warning>
+  Trade creation does not currently accept an idempotency key. If a request times out or returns a network error, check your trade list before retrying — creating the same trade twice results in two separate trades and two separate funding obligations.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Beneficiaries" icon="user" href="/guides/beneficiaries">
+    Create and manage Ghana MoMo and bank accounts for fiat settlement.
+  </Card>
+  <Card title="tGHS Treasury" icon="wallet" href="/guides/tghs-treasury">
+    Hold a managed GHS balance and pay beneficiaries from it.
+  </Card>
+</CardGroup>
